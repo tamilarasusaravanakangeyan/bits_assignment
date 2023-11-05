@@ -6,10 +6,10 @@ EXPOSE 80
 
 FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
 WORKDIR /src
-COPY ["WebAPI/WebAPI.Student.csproj", "WebAPI/"]
-RUN dotnet restore "WebAPI/WebAPI.Student.csproj"
+COPY ["WebAPI.Student.csproj", ""]
+RUN dotnet restore "WebAPI.Student.csproj"
 COPY . .
-WORKDIR "/src/WebAPI"
+WORKDIR "/src"
 RUN dotnet build "WebAPI.Student.csproj" -c Release -o /app/build
 
 FROM build AS publish

@@ -23,7 +23,7 @@ namespace WebAPI.Library.Controllers
         }
 
         [HttpGet]
-        public JsonResult Get()
+        public async Task<JsonResult> Get()
         {
             DataTable table = new DataTable();
             var con = new NpgsqlConnection(connectionString: _configuration.GetConnectionString("StudAppConnection"));

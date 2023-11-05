@@ -6,10 +6,10 @@ EXPOSE 80
 
 FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
 WORKDIR /src
-COPY ["WebAPI/WebAPI.Library.csproj", "WebAPI/"]
-RUN dotnet restore "WebAPI/WebAPI.Library.csproj"
+COPY ["WebAPI.Library.csproj", ""]
+RUN dotnet restore "WebAPI.Library.csproj"
 COPY . .
-WORKDIR "/src/WebAPI"
+WORKDIR "/src"
 RUN dotnet build "WebAPI.Library.csproj" -c Release -o /app/build
 
 FROM build AS publish

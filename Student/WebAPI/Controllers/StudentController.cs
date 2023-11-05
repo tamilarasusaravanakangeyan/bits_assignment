@@ -14,6 +14,8 @@ using System.Threading.Tasks;
 using WebAPI.Student.Models;
 using Polly;
 using Polly.Retry;
+using Newtonsoft.Json.Linq;
+using System.Xml.Linq;
 
 namespace WebAPI.Student.Controllers
 {
@@ -29,46 +31,61 @@ namespace WebAPI.Student.Controllers
         }
 
         [HttpGet]
-        public JsonResult Get()
+        public async Task<JsonResult> Get()
         {
             DataTable table = new DataTable();
             var con = new NpgsqlConnection(connectionString: _configuration.GetConnectionString("StudAppConnection"));
             con.Open();
             using var cmd = new NpgsqlCommand();
             cmd.Connection = con;
-            cmd.CommandText = $"Select StudentId, FullName, Class from Student";
+            cmd.CommandText = $"Select StudentId, FullName, Class, null AS BookName from Student";
             NpgsqlDataReader reader = cmd.ExecuteReader();
             table.Load(reader);
             con.Close();
+            //table.Columns.Add("bookname", typeof(string));
 
             var retryPolicy = Policy
-    .Handle<HttpRequestException>()
-    .OrResult<HttpResponseMessage>(r => !r.IsSuccessStatusCode)
-    .WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)));
+                                .Handle<HttpRequestException>()
+                                .OrResult<HttpResponseMessage>(r => !r.IsSuccessStatusCode)
+                                .WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)));
 
-
-            HttpResponseMessage response = null;
-            Task.Run(async () =>
+            HttpClient httpClient = new HttpClient();
+            JArray jsonArray = null;
+            try
             {
-                var httpClient = new HttpClient()
+                HttpResponseMessage response1 = await retryPolicy.ExecuteAsync(() =>
+                    httpClient.GetAsync("http://webapilibrarySrv1:80/API/LIBRARY"));
+
+                if (response1.IsSuccessStatusCode)
                 {
-                    BaseAddress = new Uri("http://localhost:32774/")
-                };
-                response = retryPolicy.ExecuteAsync(async () => await httpClient.GetAsync("API/LIBRARY")).Result;
-                // Other code to execute after the awaited task completes
-            }).Wait();
-
-            if (response.IsSuccessStatusCode)
-            {
-                // Handle a successful response
+                    // Process the successful response
+                    string content = await response1.Content.ReadAsStringAsync();
+                    jsonArray= JArray.Parse(content);
+                   
+                    Console.WriteLine("Response: " + content);
+                }
+                else
+                {
+                    Console.WriteLine("Request failed with status code: " + response1.StatusCode);
+                }
             }
-            else
+            catch (Exception ex)
             {
-                // Handle a failed response
+                Console.WriteLine("An error occurred: " + ex.Message);
+            }
+            finally
+            {
+                httpClient.Dispose();
+            }
+            foreach (JObject item in jsonArray)
+            {
+                for (int i = 0; i < table.Rows.Count; i++)
+                {
+                    table.Rows[i]["bookname"] = item["bookname"];
+                }
             }
 
-            //return product;
-            return new JsonResult(table);
+           return new JsonResult(table);           
         }
 
 
